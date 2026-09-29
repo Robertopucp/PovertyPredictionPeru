@@ -1,0 +1,11 @@
+model,fold,r2_outer,rmse_outer,r2_inner,best_params,n_test,seconds
+Decision Tree,1,0.5283747147718287,5.962419361056401,0.4845706547544199,"{'max_depth': 8, 'max_features': None, 'min_samples_leaf': 165}",6531,5.3
+Decision Tree,2,0.5595450183866155,6.983542631633071,0.4702249141351242,"{'max_depth': 5, 'max_features': 0.5, 'min_samples_leaf': 139}",4161,4.8
+Decision Tree,3,0.3849457191945498,7.405738360766763,0.4335420215944816,"{'max_depth': 16, 'max_features': 0.5, 'min_samples_leaf': 248}",7545,8.5
+Decision Tree,4,0.509408026793337,5.184117218558344,0.5040252946948823,"{'max_depth': 5, 'max_features': 0.5, 'min_samples_leaf': 139}",9227,31.3
+Decision Tree,5,0.3696399232401572,6.8641311580103785,0.5075491546009515,"{'max_depth': 16, 'max_features': 0.5, 'min_samples_leaf': 248}",8516,29.7
+Decision Tree,6,0.2976756781830753,5.946712098450004,0.5245193553496907,"{'max_depth': 16, 'max_features': 0.5, 'min_samples_leaf': 268}",10703,27.5
+Decision Tree,7,0.4002285681750941,7.0905080035458985,0.4905079757507473,"{'max_depth': 5, 'max_features': 0.5, 'min_samples_leaf': 139}",15082,25.3
+Decision Tree,8,0.246566311005183,7.370628812263417,0.5330070392525886,"{'max_depth': 5, 'max_features': 0.5, 'min_samples_leaf': 139}",11931,22.4
+Decision Tree,9,0.6181360624284701,5.736194181227265,0.5050085498999421,"{'max_depth': 5, 'max_features': 0.5, 'min_samples_leaf': 139}",6045,24.4
+Decision Tree,10,0.4926570404981734,6.966665092288292,0.5162996166452113,"{'max_depth': 5, 'max_features': 0.5, 'min_samples_leaf': 139}",12646,22.1

@@ -1,0 +1,31 @@
+# Python 3.13
+
+# Data
+numpy==2.5.3
+pandas==3.0.6
+openpyxl==3.1.5
+geopandas==1.1.4
+shapely==2.1.2
+pyproj==3.8.0
+
+# Remote sensing (Google Earth Engine). The package is `earthengine-api`, imported as `ee`.
+# Do NOT install the unrelated `ee` package: it breaks on Windows (No module named '_curses').
+earthengine-api
+geemap
+
+# Machine learning
+scikit-learn==1.9.1
+scipy==1.18.1
+xgboost==3.4.1
+lightgbm==4.7.0
+MissForest==4.2.3
+joblib==1.6.0
+
+# Visualization
+matplotlib==3.11.2
+seaborn==0.13.2
+missingno==0.5.2
+
+# Notebooks / utilities
+ipykernel==7.3.0
+tqdm==4.70.1
