@@ -1,0 +1,11 @@
+model,fold,r2_outer,rmse_outer,r2_inner,best_params,n_test,seconds
+Random Forest,1,0.6985478581752156,4.766868427900129,0.5979374729744221,"{'max_depth': None, 'max_features': 'sqrt', 'max_samples': np.float64(0.37046), 'min_samples_leaf': 15, 'n_estimators': 400}",6531,447.8
+Random Forest,2,0.6393217117022125,6.319533574356396,0.6172764090792843,"{'max_depth': 30, 'max_features': 'sqrt', 'max_samples': np.float64(0.60056), 'min_samples_leaf': 24, 'n_estimators': 230}",4161,491.9
+Random Forest,3,0.6039586545131151,5.94267398536313,0.6047307126735498,"{'max_depth': None, 'max_features': 'sqrt', 'max_samples': np.float64(0.37046), 'min_samples_leaf': 15, 'n_estimators': 400}",7545,182.8
+Random Forest,4,0.6460042408481879,4.403658407801958,0.5993236258313263,"{'max_depth': None, 'max_features': 0.3, 'max_samples': np.float64(0.51258), 'min_samples_leaf': 42, 'n_estimators': 359}",9227,190.2
+Random Forest,5,0.4325827515308729,6.512421331341004,0.6010652459190794,"{'max_depth': 10, 'max_features': 0.3, 'max_samples': np.float64(0.46267), 'min_samples_leaf': 16, 'n_estimators': 336}",8516,196.3
+Random Forest,6,0.5682113132918614,4.662766725756847,0.6254240593454576,"{'max_depth': None, 'max_features': 0.3, 'max_samples': np.float64(0.51258), 'min_samples_leaf': 42, 'n_estimators': 359}",10703,196.2
+Random Forest,7,0.552075828371126,6.127547877992385,0.5984164601475469,"{'max_depth': None, 'max_features': 0.3, 'max_samples': np.float64(0.51258), 'min_samples_leaf': 42, 'n_estimators': 359}",15082,182.8
+Random Forest,8,0.5288116699067458,5.828801769323314,0.6207359121488408,"{'max_depth': 10, 'max_features': 'sqrt', 'max_samples': np.float64(0.79344), 'min_samples_leaf': 24, 'n_estimators': 228}",11931,166.4
+Random Forest,9,0.7166442151173107,4.941235616008766,0.5770811181440259,"{'max_depth': 10, 'max_features': 0.3, 'max_samples': np.float64(0.46267), 'min_samples_leaf': 16, 'n_estimators': 336}",6045,394.1
+Random Forest,10,0.5307835979694903,6.69978254102588,0.6115591078229141,"{'max_depth': 10, 'max_features': 0.3, 'max_samples': np.float64(0.46267), 'min_samples_leaf': 16, 'n_estimators': 336}",12646,653.6
