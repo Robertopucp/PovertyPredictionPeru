@@ -1,17 +1,24 @@
 # Python 3.13
+# Exact versions used to produce the results in the README.
 
 # Data
 numpy==2.5.3
 pandas==3.0.6
 openpyxl==3.1.5
+pyarrow==25.0.1
+
+# Geospatial
 geopandas==1.1.4
 shapely==2.1.2
 pyproj==3.8.0
+pyogrio==0.13.0
+rasterio==1.5.2
 
 # Remote sensing (Google Earth Engine). The package is `earthengine-api`, imported as `ee`.
 # Do NOT install the unrelated `ee` package: it breaks on Windows (No module named '_curses').
-earthengine-api
-geemap
+earthengine-api==1.7.46
+geemap==0.38.9
+requests==2.34.2
 
 # Machine learning
 scikit-learn==1.9.1
@@ -20,6 +27,10 @@ xgboost==3.4.1
 lightgbm==4.7.0
 MissForest==4.2.3
 joblib==1.6.0
+
+# Deep learning (CNN)
+tensorflow==2.21.0
+keras==3.15.1
 
 # Visualization
 matplotlib==3.11.2
