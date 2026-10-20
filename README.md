@@ -3,6 +3,23 @@
 This project predicts the **poverty rate (%) of urban city blocks (*manzanas*) in Peru** with machine learning.
 It combines 2017 census data, satellite (remote sensing) data and district-level administrative data.
 
+It has two parts:
+
+1. **Classical machine learning at block level**: 9 models compared with nested cross-validation, plus
+   ensembles (averages and stacking).
+2. **Deep learning on satellite imagery**: a convolutional neural network (CNN) that combines Landsat 8
+   images with socioeconomic variables to predict poverty on 2 km grids.
+
+### Methods at a glance
+
+| Area | Techniques used |
+|---|---|
+| Data engineering | Google Earth Engine extraction (Landsat 8, VIIRS, SRTM, WorldClim), spatial joins and grid aggregation with GeoPandas, raster cropping and georeferencing with Rasterio |
+| Data cleaning | Outlier detection (IQR, DBSCAN, Local Outlier Factor, Isolation Forest) and imputation (mean, KNN, MissForest) |
+| Classical ML | Linear models, decision trees, Random Forest, Gradient Boosting, XGBoost, LightGBM, AdaBoost; nested cross-validation; ensembles and stacking |
+| Deep learning | Two-input CNN (image + tabular vector) in TensorFlow/Keras: residual blocks, BatchNorm, SpatialDropout, wide path, data augmentation (rotations and flips), learning-rate scheduling and early stopping |
+| Validation | Train / validation / test splits **by district** to avoid spatial leakage; architecture selected by cross-validation by district, never with the test set |
+
 ## Motivation
 
 Peru's national statistics institute (INEI) published the 2018 poverty map disaggregated to the
@@ -37,6 +54,12 @@ the best model to **predict the poverty rate of the urban blocks that don't**.
 Procesing_data_GoogleEarth.ipynb   ->  night lights, elevation and temperature per block (Google Earth Engine)
 Feature_Engineering.ipynb          ->  census shares, merges, outlier detection and imputation -> DataForML.dta
 TrainingModel.ipynb                ->  nested CV, model selection, ensembles, test evaluation, predictions
+
+# Deep learning part
+ShapefileManzana.ipynb             ->  2 km x 2 km grid over the urban blocks
+Landsat_download.ipynb             ->  one satellite image per grid (Google Earth Engine; now set to Sentinel-2 RGB,
+                                       the results below use Landsat 8)
+CNNModel.ipynb                     ->  image preprocessing, CNN training, evaluation, predictions per grid
 ```
 
 ### 1. Feature engineering, outlier detection and imputation
@@ -117,7 +140,7 @@ The final model is the one with the highest mean R² in cross-validation on the 
 selected base model. Tree-based ensembles clearly beat the linear models. The linear models also have a very
 unstable R² across districts.
 
-![Nested cross-validation R² by model](output/ModelNestedCV/boxplot_nested_cv.png)
+![Nested cross-validation R² by model](img/nested_cv_r2_by_model.png)
 
 *Each point is one outer fold (a set of held-out districts). Red diamond = mean.*
 
@@ -136,7 +159,7 @@ tuned on the full training set.
 | Ridge | 0.375 | 0.556 | 6.04 | 4.79 |
 | Linear Regression | 0.274 | 0.552 | 6.07 | 4.82 |
 
-![Nested CV R² vs full test set R²](output/ModelNestedCV/boxplot_nested_cv_vs_test.png)
+![Nested CV R² vs full test set R²](img/nested_cv_vs_test_r2.png)
 
 The linear models score well on this particular test set, but the nested CV shows they are unreliable across
 districts. In some folds their R² is strongly negative. The test set has only 15 districts, so a single
@@ -156,7 +179,7 @@ CV R², with the best model first.
 | XGBoost | Base | 0.573 | 0.094 | 5.76 | 0.480 | 6.54 | 4.95 |
 | Ridge | Base | 0.375 | 0.344 | 6.70 | 0.556 | 6.04 | 4.79 |
 
-![Base models vs ensembles](output/ModelNestedCV/Ensembles/boxplot_ensembles.png)
+![Base models vs ensembles](img/ensembles_cv_vs_test_r2.png)
 
 *Box = 10 CV folds on train; orange star = R² on the full test set.*
 
@@ -195,6 +218,148 @@ The poverty rate is a percentage, so **predictions below 0 or above 100 are set 
 This affects 15,021 blocks (17.9%). Most of them come from the Ridge component, which extrapolates badly for
 blocks whose features fall far outside the training range.
 
+## Deep learning: CNN on satellite imagery
+
+The second part asks whether **satellite images** add information to the socioeconomic variables. It
+trains a convolutional neural network that looks at a Landsat 8 image of each area and, at the same time,
+reads a vector of socioeconomic variables.
+
+### Unit of analysis: 2 km grids
+
+Blocks are too small for a 30 m satellite image (a block is a few pixels), so the CNN works on a
+**2 km × 2 km grid** over the urban areas.
+
+- Each block is assigned to the grid that contains its centroid. Variables are averaged per grid.
+  The district of the grid (`UBIGEO`) is the most frequent one among its blocks.
+- Grids with the 2018 poverty rate: **946** (944 with an image), in 121 districts. They are used to train,
+  validate and test the model.
+- Grids without poverty rate: **3,350**. They are predicted at the end.
+
+### Inputs
+
+| Input | Content | Preprocessing |
+|---|---|---|
+| **Image** | Landsat 8 Collection 2, surface reflectance, 7 bands (coastal, blue, green, red, NIR, SWIR1, SWIR2), cloud-masked median of March–July 2018, 30 m | Centered crop to **68 × 68 pixels** (2.04 km), pixels outside the grid set to 0, each band scaled to [0, 1] with the min/max of train |
+| **Socioeconomic vector** (32 variables) | Census shares, night lights, elevation, temperature, poverty 2013, *Juntos*, grid centroid; plus the **average of the neighboring grids within 5 km** (spatial context) | Clipped to the train range, median imputation, standardization (all fitted on train only) |
+
+The 12 municipal-finance variables are **excluded**. In small districts without poverty data they take
+extreme per-capita values, and the network then predicted rates above 100% in 808 of 3,350 grids. Without
+them the validation R² is the same.
+
+### Train / validation / test split by district
+
+The split is **80% / 10% / 10% by district**. All grids of a district fall in the same set, so the validation
+and test sets measure performance on **districts the model has never seen**. Neighboring grids are very
+similar, so a random split by grid would give misleadingly high scores.
+
+| Set | Grids | Districts |
+|---|---:|---:|
+| Train | 731 | 96 |
+| Validation | 103 | 12 |
+| Test | 110 | 13 |
+
+**Data augmentation** (train only): each image is randomly rotated (0°, 90°, 180°, 270°) and flipped in
+every epoch. These transformations are exact (no interpolation) and multiply the effective number of
+training images by 8.
+
+### Architecture
+
+```
+Image 68×68×7 ──► Conv 3×3 (32) ─► SpatialDropout
+                 ─► Residual block (32)  + MaxPool  68 → 34
+                 ─► Residual block (64)  + MaxPool  34 → 17
+                 ─► Residual block (128) + MaxPool  17 → 8
+                 ─► GlobalAveragePooling (128 values) ─┐
+                                                       ├─► Dense(32) ─► Dropout ─► Dense(16) ─┐
+Socioeconomic vector (32) ─────────────────────────────┤                                      ├─► Dense(1)
+                                                       └──────────── wide path ───────────────┘
+```
+
+- **Residual blocks**: two 3×3 convolutions with batch normalization plus a shortcut that adds the block
+  input to its output. Each block only learns the change over its input, which trains better with few images.
+- **Regularization**: SpatialDropout 0.1 after each convolutional stage (switches off whole feature maps),
+  Dropout 0.3 in the dense part, L2 penalty 1e-4.
+- **Wide path**: the socioeconomic vector also goes straight to the output, so the network keeps a direct
+  linear relation with the variables.
+- **Output**: one neuron with linear activation (regression of the poverty rate in %).
+- **Training**: Adam, MSE loss, R² / RMSE / MAE metrics, learning rate halved after 5 epochs without
+  improvement, early stopping after 25 epochs (best weights restored).
+
+**Final prediction = 0.5 × CNN + 0.5 × Ridge.** Ridge is a separate linear regression on the same
+socioeconomic vector (no image), trained on train only. It is stable and captures the linear part; the CNN
+adds what it sees in the image. Averaging both reduces the error of each one.
+
+### How the architecture was chosen
+
+Eight designs were compared with **5-fold cross-validation by district** on train + validation. The test set
+was not used. Mean R² on the held-out districts:
+
+| Design | CNN alone | Average CNN + Ridge |
+|---|---:|---:|
+| **Residual 32-64-128, dropout 0.1 / 0.3 (final)** | **0.57** | **0.64** |
+| Same network, dropout 0.2 / 0.5 | 0.44 | 0.60 |
+| Plain CNN 16-32-64 | 0.57 | 0.63 |
+| CNN trained on the Ridge residual | 0.63 | 0.64 |
+| Small, deep (4 blocks) or 5×5-kernel residual networks | 0.43–0.45 | 0.59–0.60 |
+| *Ridge alone (no image)* | | *0.63* |
+
+With stronger dropout the CNN stopped learning (R² 0.44). Lighter dropout let it learn while keeping the
+train-validation gap small.
+
+### Results
+
+| Set | R² | R² weighted by number of blocks | RMSE (pp) | MAE (pp) |
+|---|---:|---:|---:|---:|
+| Train | 0.793 | 0.833 | 4.40 | 3.21 |
+| Validation | 0.758 | 0.887 | 4.83 | 3.30 |
+| **Test** (13 unseen districts) | **0.680** | **0.722** | **4.80** | **3.69** |
+
+The gap between train and validation is only **0.03**: the model **learns patterns instead of memorizing**
+the training grids. The weighted R² gives more weight to grids with more blocks, whose observed poverty rate
+is more reliable.
+
+![R² of the final model by set](img/cnn_r2_by_set.png)
+
+Train and validation are measured the same way at the end of each epoch (without dropout and without
+augmentation), so the two curves are comparable. Both converge to an R² of about 0.76:
+
+![CNN learning curves](img/cnn_learning_curves.png)
+
+![Observed vs predicted poverty on the test set](img/cnn_observed_vs_predicted_test.png)
+
+![Distribution of the errors and R² by number of blocks](img/cnn_test_errors.png)
+
+What each part contributes on the test set:
+
+| Model | Test R² |
+|---|---:|
+| **Final (CNN + Ridge)** | **0.680** |
+| Ridge alone (no image) | 0.673 |
+| CNN alone (image + variables) | 0.648 |
+
+These R² values are at the **2 km grid level**, so they are not directly comparable with the block-level R²
+of the first part: a grid averages many blocks and its poverty rate is less noisy.
+
+### Predictions for grids without data
+
+The final model predicts the poverty rate of the 3,350 grids without data (mean 24.3%). Predictions below 0
+are set to 0 (13 grids) and above 100 to 100 (none). Outputs:
+
+- `output/CNN/predictions_grid2km_cnn.csv`: `ID`, `UBIGEO`, centroid, number of blocks, predicted rate.
+- `output/CNN/predictions_grid2km_cnn.gpkg`: the same with the grid geometry, ready for a map.
+
+### Limitations and next steps
+
+- **Landsat resolution (30 m) is coarse for cities.** A house is smaller than a pixel, so roofs, street
+  widths and building density are not visible. With the image alone, the best R² was 0.26 (pretrained
+  ResNet50 features). `Landsat_download.ipynb` is now set to download **Sentinel-2 RGB at 10 m**
+  (9 times more pixels per grid) for the next version of the model.
+- **The target varies little within a district.** `Pobreza2018` has only 251 distinct values across 115,948
+  blocks (about 3 per district): INEI estimates poverty for groups of blocks, not for each one. This limits
+  what any model can explain inside a district.
+- **The test set has only 13 districts.** Across cross-validation folds the R² varies by about ±0.14, so a
+  single test number should be read with that margin.
+
 ## Repository structure
 
 ```
@@ -202,10 +367,15 @@ blocks whose features fall far outside the training range.
 │   ├── Procesing_data_GoogleEarth.ipynb   # Night lights, elevation, temperature per block (GEE)
 │   ├── Night_light_quarters_VIRRS.ipynb   # Earlier night-light extraction (grids / districts)
 │   ├── Feature_Engineering.ipynb          # Census features, merges, outliers, imputation
-│   └── TrainingModel.ipynb                # Nested CV, ensembles, evaluation, predictions
+│   ├── TrainingModel.ipynb                # Nested CV, ensembles, evaluation, predictions
+│   ├── ShapefileManzana.ipynb             # 2 km grid over the urban blocks
+│   ├── Landsat_download.ipynb             # Satellite image per grid (GEE)
+│   └── CNNModel.ipynb                     # CNN: preprocessing, training, evaluation, predictions
 ├── scr/
 │   └── utils.py                           # Helper functions (GEE, outliers, imputation, training, ensembles, plots)
-├── output/ModelNestedCV/                  # Results: tables, figures, Excel report
+├── img/                                   # Figures used in this README
+├── output/ModelNestedCV/                  # Classical ML results: tables, figures, Excel report
+├── output/CNN/                            # CNN results: figures and predictions per grid
 ├── requirements.txt
 └── LICENSE
 ```
