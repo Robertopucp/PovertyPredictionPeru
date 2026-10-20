@@ -246,6 +246,10 @@ The 12 municipal-finance variables are **excluded**. In small districts without 
 extreme per-capita values, and the network then predicted rates above 100% in 808 of 3,350 grids. Without
 them the validation R² is the same.
 
+![Daytime satellite image of Lima, the capital of Peru](img/Daytime_CapitalPeru.png)
+
+*Example of a daytime satellite image (true color): Lima, the capital of Peru.*
+
 ### Train / validation / test split by district
 
 The split is **80% / 10% / 10% by district**. All grids of a district fall in the same set, so the validation
@@ -289,23 +293,6 @@ Socioeconomic vector (32) ──────────────────
 socioeconomic vector (no image), trained on train only. It is stable and captures the linear part; the CNN
 adds what it sees in the image. Averaging both reduces the error of each one.
 
-### How the architecture was chosen
-
-Eight designs were compared with **5-fold cross-validation by district** on train + validation. The test set
-was not used. Mean R² on the held-out districts:
-
-| Design | CNN alone | Average CNN + Ridge |
-|---|---:|---:|
-| **Residual 32-64-128, dropout 0.1 / 0.3 (final)** | **0.57** | **0.64** |
-| Same network, dropout 0.2 / 0.5 | 0.44 | 0.60 |
-| Plain CNN 16-32-64 | 0.57 | 0.63 |
-| CNN trained on the Ridge residual | 0.63 | 0.64 |
-| Small, deep (4 blocks) or 5×5-kernel residual networks | 0.43–0.45 | 0.59–0.60 |
-| *Ridge alone (no image)* | | *0.63* |
-
-With stronger dropout the CNN stopped learning (R² 0.44). Lighter dropout let it learn while keeping the
-train-validation gap small.
-
 ### Results
 
 | Set | R² | R² weighted by number of blocks | RMSE (pp) | MAE (pp) |
@@ -328,17 +315,6 @@ augmentation), so the two curves are comparable. Both converge to an R² of abou
 ![Observed vs predicted poverty on the test set](img/cnn_observed_vs_predicted_test.png)
 
 ![Distribution of the errors and R² by number of blocks](img/cnn_test_errors.png)
-
-What each part contributes on the test set:
-
-| Model | Test R² |
-|---|---:|
-| **Final (CNN + Ridge)** | **0.680** |
-| Ridge alone (no image) | 0.673 |
-| CNN alone (image + variables) | 0.648 |
-
-These R² values are at the **2 km grid level**, so they are not directly comparable with the block-level R²
-of the first part: a grid averages many blocks and its poverty rate is less noisy.
 
 ### Predictions for grids without data
 
@@ -382,22 +358,48 @@ are set to 0 (13 grids) and above 100 to 100 (none). Outputs:
 
 ## How to reproduce
 
+**1. Environment** (Python 3.13; all package versions are pinned in `requirements.txt`):
+
 ```bash
+git clone https://github.com/Robertopucp/PovertyPredictionPeru.git
+cd PovertyPredictionPeru
 python -m venv .venv
 .venv\Scripts\activate          # Windows  (Linux/macOS: source .venv/bin/activate)
 pip install -r requirements.txt
 ```
 
-Then run the notebooks in the order of the pipeline above. The data files are **not included** in the
-repository because of their size. The raw data comes from INEI (Census 2017, *Mapa de Pobreza 2018*,
-poverty 2013, RENAMU 2016), MINEDU and Google Earth Engine, and is expected under `data/raw_data/`.
+**2. Google Earth Engine** (needed only to download the satellite data). Create a free account at
+[earthengine.google.com](https://earthengine.google.com), then authenticate once:
 
-The remote-sensing notebooks need a Google Earth Engine account. Install the package with
-`pip install earthengine-api`. Do **not** install the unrelated PyPI package called `ee`: it fails on Windows
-with `No module named '_curses'`.
+```bash
+earthengine authenticate
+```
 
-`TrainingModel.ipynb` saves checkpoints (`.joblib` / `.csv`) after each model and each fold. If a run is
-interrupted, running the notebook again skips the finished steps.
+The package is `earthengine-api`. Do **not** install the unrelated PyPI package called `ee`: it fails on
+Windows with `No module named '_curses'`.
+
+**3. Data.** The data is **not included** because of its size. Place the INEI files (Census 2017,
+*Mapa de Pobreza 2018*, poverty 2013, RENAMU 2016), the MINEDU school census and the 2017 block shapefile
+(`MANZANA.shp`) under `data/raw_data/`.
+
+**4. Run the notebooks** (from the `notebook/` folder, in this order):
+
+| Step | Notebook | Creates |
+|---|---|---|
+| 1 | `Procesing_data_GoogleEarth.ipynb` | Night lights, elevation and temperature per block |
+| 2 | `Feature_Engineering.ipynb` | `data/temporal_data/DataForML.dta` |
+| 3 | `TrainingModel.ipynb` | Classical ML results in `output/ModelNestedCV/` |
+| 4 | `ShapefileManzana.ipynb` | 2 km grid: `data/temporal_data/shapefile/DatasetGrids2km.shp` |
+| 5 | `Landsat_download.ipynb` | One image per grid in `data/raw_data/` (about 3–4 hours) |
+| 6 | `CNNModel.ipynb` | Cropped images, CNN results and predictions in `output/CNN/` |
+
+Notes:
+
+- Steps 3 and 6 are independent: the CNN only needs steps 2, 4 and 5.
+- `TrainingModel.ipynb` saves checkpoints after each model and fold, and `Landsat_download.ipynb` skips the
+  grids already downloaded. If a run stops, running the notebook again continues where it stopped.
+- The CNN runs on CPU (TensorFlow does not use the GPU on native Windows); training takes a few minutes.
+  Results can change slightly between runs (about ±0.02 in R²).
 
 ## License
 
